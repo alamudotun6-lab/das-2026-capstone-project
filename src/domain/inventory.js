@@ -155,15 +155,32 @@ export function findBookingByReference(store, reference) {
 export function cancelBooking(store, reference) {
   requireStore(store);
   requireText(reference, 'reference');
+
   const booking = findBookingByReference(store, reference);
-  if (!booking) throw new DomainError('NOT_FOUND', 'Booking not found');
-  if (!HOLDS_SEATS.has(booking.status)) {
-    throw new DomainError('INVALID_STATE', `A ${booking.status} booking cannot be cancelled`);
+
+  if (!booking) {
+    throw new DomainError('NOT_FOUND', 'Booking not found');
   }
-  getTier(store, booking.tierId).sold -= booking.quantity;
+
+  if (!HOLDS_SEATS.has(booking.status)) {
+    throw new DomainError(
+      'INVALID_STATE',
+      `A ${booking.status} booking cannot be cancelled`
+    );
+  }
+
+  const tier = getTier(store, booking.tierId);
+
+  // Release the cancelled booking's seats.
+  tier.sold -= booking.quantity;
   booking.status = 'cancelled';
+
+  // Automatically process one eligible waitlist request.
+  processNextWaitlistBooking(store, booking.tierId);
+
   return booking;
 }
+
 
 export function joinWaitlist(store, tierId, userId, quantity) {
   requireStore(store);
@@ -200,16 +217,16 @@ export function processNextWaitlistBooking(store, tierId) {
   const queue = store.waitlists.get(tierId);
   const next = queue.peek();
 
-  // No one is waiting.
+  // Nobody is waiting.
   if (!next) return undefined;
 
-  // Preserve FIFO order: don't skip the first customer.
-  // Keep their request in the queue until enough seats are available.
+  // Preserve FIFO order if there aren't enough seats.
   if (seatsLeft(tier) < next.quantity) return undefined;
 
-  // Remove the customer only when their request can be fulfilled.
+  // Remove the next request from the queue.
   const request = queue.dequeue();
 
-  // Create a normal booking, which also reserves seats.
+  // Create a booking and reserve the requested seats.
   return bookTickets(store, tierId, request.userId, request.quantity);
 }
+
