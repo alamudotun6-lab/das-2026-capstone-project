@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login – Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/">Event Ticketing</a>
+      <nav style="margin-left:auto; display:flex; gap:1rem;">
+        <a href="/">Events</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="checkout" style="max-width:420px; margin:0 auto;">
+        <h1>Sign in or create an account</h1>
+        <div id="error" class="error" hidden></div>
+        <div id="success" class="success" hidden></div>
+
+        <form id="auth-form" class="card-form">
+          <label>
+            Name (signup only)
+            <input type="text" name="name" autocomplete="name">
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required autocomplete="email">
+          </label>
+          <label>
+            Password (min 8 characters)
+            <input type="password" name="password" required minlength="8" autocomplete="current-password">
+          </label>
+          <label>
+            Role (signup only)
+            <select name="role">
+              <option value="attendee">Attendee</option>
+              <option value="organizer">Organizer</option>
+            </select>
+          </label>
+          <div style="display:flex; gap:0.5rem;">
+            <button type="submit" name="action" value="login">Log in</button>
+            <button type="submit" name="action" value="signup" class="secondary">Sign up</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script type="module">
+      import { login, signup } from './js/api.js';
+
+      const form = document.getElementById('auth-form');
+      const errorEl = document.getElementById('error');
+      const successEl = document.getElementById('success');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorEl.hidden = true;
+        successEl.hidden = true;
+        const fd = new FormData(form);
+        const action = e.submitter?.value || 'login';
+        const payload = {
+          email: fd.get('email'),
+          password: fd.get('password'),
+          name: fd.get('name') || undefined,
+          role: fd.get('role') || 'attendee',
+        };
+
+        try {
+          const result = action === 'signup' ? await signup(payload) : await login(payload);
+          successEl.textContent = `Welcome, ${result.user.name} (${result.user.role})`;
+          successEl.hidden = false;
+          const dest = result.user.role === 'organizer' ? '/organizer.html' : '/tickets.html';
+          setTimeout(() => { location.href = dest; }, 600);
+        } catch (err) {
+          errorEl.textContent = err.message || 'Something went wrong';
+          errorEl.hidden = false;
+        }
+      });
+    </script>
+  </body>
+</html>

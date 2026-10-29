@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Organizer – Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/">Event Ticketing</a>
+      <nav style="margin-left:auto; display:flex; gap:1rem; align-items:center;">
+        <a href="/">Events</a>
+        <a href="/organizer.html">Dashboard</a>
+        <a href="/login.html" id="auth-link">Log in</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Organizer dashboard</h1>
+      <div id="msg" class="success" hidden></div>
+      <div id="err" class="error" hidden></div>
+
+      <section class="checkout">
+        <h2>Create an event</h2>
+        <form id="event-form" class="card-form">
+          <label>Title <input name="title" required></label>
+          <label>City <input name="city" required></label>
+          <label>Venue <input name="venue"></label>
+          <label>Starts at <input name="startsAt" type="datetime-local" required></label>
+          <button type="submit">Create draft</button>
+        </form>
+      </section>
+
+      <section class="checkout" style="margin-top:1.25rem;">
+        <h2>Add a tier</h2>
+        <form id="tier-form" class="card-form">
+          <label>Event id <input name="eventId" required placeholder="paste event id"></label>
+          <label>Tier name <input name="name" value="General" required></label>
+          <label>Price (kobo) <input name="priceCents" type="number" min="0" step="100" value="500000" required></label>
+          <label>Capacity <input name="capacity" type="number" min="1" value="50" required></label>
+          <button type="submit">Add tier</button>
+        </form>
+      </section>
+
+      <section class="checkout" style="margin-top:1.25rem;">
+        <h2>Publish</h2>
+        <form id="publish-form" class="card-form">
+          <label>Event id <input name="eventId" required></label>
+          <button type="submit">Publish event</button>
+        </form>
+      </section>
+    </main>
+
+    <script type="module">
+      import { createEvent, addTier, publishEvent, logout } from './js/api.js';
+      import { isLoggedIn, getUser, clearSession } from './js/session.js';
+
+      const msg = document.getElementById('msg');
+      const err = document.getElementById('err');
+      const authLink = document.getElementById('auth-link');
+
+      if (!isLoggedIn() || getUser()?.role !== 'organizer') {
+        location.href = '/login.html';
+      } else {
+        authLink.textContent = `Log out (${getUser().name})`;
+        authLink.href = '#';
+        authLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          logout();
+          location.href = '/';
+        });
+      }
+
+      function showOk(text) {
+        err.hidden = true;
+        msg.textContent = text;
+        msg.hidden = false;
+      }
+      function showErr(text) {
+        msg.hidden = true;
+        err.textContent = text;
+        err.hidden = false;
+      }
+
+      document.getElementById('event-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          const startsAt = new Date(fd.get('startsAt')).toISOString();
+          const event = await createEvent({
+            title: fd.get('title'),
+            city: fd.get('city'),
+            venue: fd.get('venue'),
+            startsAt,
+          });
+          showOk(`Created draft event ${event.id}`);
+          document.querySelector('#tier-form [name=eventId]').value = event.id;
+          document.querySelector('#publish-form [name=eventId]').value = event.id;
+        } catch (ex) {
+          showErr(ex.message);
+        }
+      });
+
+      document.getElementById('tier-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          const tier = await addTier(fd.get('eventId'), {
+            name: fd.get('name'),
+            priceCents: Number(fd.get('priceCents')),
+            capacity: Number(fd.get('capacity')),
+          });
+          showOk(`Added tier ${tier.id} (${tier.name})`);
+        } catch (ex) {
+          showErr(ex.message);
+        }
+      });
+
+      document.getElementById('publish-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          const event = await publishEvent(fd.get('eventId'));
+          showOk(`Published: ${event.title}`);
+        } catch (ex) {
+          showErr(ex.message);
+        }
+      });
+    </script>
+  </body>
+</html>

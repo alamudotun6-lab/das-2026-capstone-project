@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Event Ticketing – Browse</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/">Event Ticketing</a>
+      <nav style="margin-left:auto; display:flex; gap:1rem;">
+        <a href="/">Events</a>
+        <a href="/tickets.html">My tickets</a>
+        <a href="/organizer.html">Organizer</a>
+        <a href="/login.html">Log in</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1 class="sr-only">Browse events</h1>
+
+      <form id="filters" class="filters" action="#" method="get">
+        <label>
+          Search
+          <input type="search" name="q" placeholder="Title or venue" autocomplete="off">
+        </label>
+        <label>
+          City
+          <input type="text" name="city" placeholder="e.g. Lagos" autocomplete="off">
+        </label>
+        <label>
+          Max price (kobo)
+          <input type="number" name="maxPriceCents" min="0" step="100" placeholder="e.g. 500000">
+        </label>
+        <label>
+          Sort by
+          <select name="sort">
+            <option value="date">Date</option>
+            <option value="price">Price</option>
+            <option value="availability">Availability</option>
+          </select>
+        </label>
+        <label>
+          Available only
+          <input type="checkbox" name="onlyAvailable">
+        </label>
+        <label style="justify-content: flex-end">
+          <span class="sr-only">Apply filters</span>
+          <button type="submit">Apply</button>
+        </label>
+      </form>
+
+      <section id="event-list" class="event-list" aria-live="polite">
+        <p class="muted">Loading…</p>
+      </section>
+    </main>
+
+    <script type="module" src="/js/pages/home.js"></script>
+  </body>
+</html>

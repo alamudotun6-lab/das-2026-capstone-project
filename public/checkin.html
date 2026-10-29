@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Staff check-in – Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/">Event Ticketing</a>
+      <nav style="margin-left:auto; display:flex; gap:1rem;">
+        <a href="/checkin.html">Check-in</a>
+        <a href="/login.html">Log in</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="checkout" style="max-width:480px; margin:0 auto;">
+        <h1>Staff check-in</h1>
+        <p class="meta">Paste the ticket token from a paid booking. Staff role required.</p>
+        <div id="error" class="error" hidden></div>
+        <div id="success" class="success" hidden></div>
+        <form id="checkin-form" class="card-form">
+          <label>
+            Ticket token
+            <textarea name="token" rows="3" required placeholder="Paste token here" style="font-family:monospace; width:100%;"></textarea>
+          </label>
+          <label>
+            Event id (optional – reject tickets for other events)
+            <input name="eventId" placeholder="event id">
+          </label>
+          <button type="submit">Check in</button>
+        </form>
+      </section>
+    </main>
+
+    <script type="module">
+      import { getToken, getUser, isLoggedIn } from './js/session.js';
+
+      if (!isLoggedIn() || getUser()?.role !== 'staff') {
+        // Allow page to load but show hint
+        document.getElementById('error').textContent =
+          'Log in as a staff user to check in tickets.';
+        document.getElementById('error').hidden = false;
+      }
+
+      document.getElementById('checkin-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = document.getElementById('error');
+        const ok = document.getElementById('success');
+        err.hidden = true;
+        ok.hidden = true;
+        const fd = new FormData(e.target);
+        const body = { token: fd.get('token').trim() };
+        if (fd.get('eventId')) body.eventId = fd.get('eventId');
+
+        try {
+          const res = await fetch('/api/checkin', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              authorization: `Bearer ${getToken()}`,
+            },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            err.textContent = data.error?.message || 'Check-in failed';
+            if (data.error?.code === 'DUPLICATE' && data.error) {
+              // details may be in message only
+            }
+            err.hidden = false;
+            return;
+          }
+          ok.textContent = `Checked in ${data.reference} (${data.quantity} ticket(s)) at ${data.checkedInAt}`;
+          ok.hidden = false;
+          e.target.reset();
+        } catch (ex) {
+          err.textContent = ex.message;
+          err.hidden = false;
+        }
+      });
+    </script>
+  </body>
+</html>

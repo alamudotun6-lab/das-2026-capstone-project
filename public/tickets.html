@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My tickets – Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/">Event Ticketing</a>
+      <nav style="margin-left:auto; display:flex; gap:1rem; align-items:center;">
+        <a href="/">Events</a>
+        <a href="/tickets.html">My tickets</a>
+        <a href="/login.html" id="auth-link">Log in</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>My tickets</h1>
+      <div id="list" class="event-list">
+        <p class="muted">Loading…</p>
+      </div>
+    </main>
+
+    <script type="module">
+      import { el, formatPrice, clear } from './js/ui.js';
+      import { myBookings, logout } from './js/api.js';
+      import { isLoggedIn, getUser, getToken, clearSession } from './js/session.js';
+      import { renderQr } from './js/qr.js';
+
+      const list = document.getElementById('list');
+      const authLink = document.getElementById('auth-link');
+
+      if (!isLoggedIn()) {
+        location.href = '/login.html';
+      } else {
+        const user = getUser();
+        authLink.textContent = `Log out (${user?.name || 'user'})`;
+        authLink.href = '#';
+        authLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          logout();
+          location.href = '/';
+        });
+      }
+
+      async function loadTicketToken(reference) {
+        const res = await fetch(`/api/bookings/${encodeURIComponent(reference)}/ticket`, {
+          headers: { authorization: `Bearer ${getToken()}` },
+        });
+        if (!res.ok) return null;
+        return res.json();
+      }
+
+      try {
+        const bookings = await myBookings();
+        clear(list);
+        if (!bookings.length) {
+          list.appendChild(el('div', { className: 'empty' }, 'You have no bookings yet.'));
+        } else {
+          for (const b of bookings) {
+            const card = el('article', { className: 'event-card' }, [
+              el('h2', null, b.reference),
+              el('div', { className: 'meta' }, [
+                `Status: ${b.status} · ${b.quantity} ticket(s) · ${formatPrice(b.amountCents)}`,
+              ]),
+            ]);
+
+            if (b.status === 'paid' || b.status === 'checked_in') {
+              const canvas = el('canvas', { width: 168, height: 168, style: 'margin-top:0.75rem' });
+              const tokenBox = el('pre', {
+                className: 'meta',
+                style: 'word-break:break-all; font-size:0.7rem; margin-top:0.5rem',
+              }, 'Loading ticket…');
+              card.appendChild(canvas);
+              card.appendChild(tokenBox);
+
+              loadTicketToken(b.reference).then((t) => {
+                if (!t) {
+                  tokenBox.textContent = 'Ticket unavailable';
+                  return;
+                }
+                renderQr(canvas, t.token);
+                tokenBox.textContent = t.token;
+              });
+            }
+
+            list.appendChild(card);
+          }
+        }
+      } catch (err) {
+        clear(list);
+        list.appendChild(el('div', { className: 'empty' }, err.message));
+        if (err.code === 'UNAUTHENTICATED') {
+          clearSession();
+          setTimeout(() => { location.href = '/login.html'; }, 800);
+        }
+      }
+    </script>
+  </body>
+</html>
