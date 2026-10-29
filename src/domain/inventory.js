@@ -147,6 +147,9 @@ export function cancelBooking(store, reference) {
   }
   getTier(store, booking.tierId).sold -= booking.quantity;
   booking.status = 'cancelled';
+
+  processNextWaitlistBooking(store, booking.tierId);
+
   return booking;
 }
 
@@ -171,4 +174,14 @@ export function offerNextOnWaitlist(store, tierId) {
   const head = queue.peek();
   if (!head || seatsLeft(tier) < head.quantity) return undefined;
   return queue.dequeue();
+}
+
+export function processNextWaitlistBooking(store, tierId) {
+  const next = offerNextOnWaitlist(store, tierId);
+
+  if (!next) {
+    return undefined;
+  }
+
+  return bookTickets(store, tierId, next.userId, next.quantity);
 }
